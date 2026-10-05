@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { scroll-behavior: smooth; }
+body { background: #0A0A0A; color: #fff; font-family: Inter, system-ui, sans-serif; overflow-x: hidden; }
+.text-gold-gradient {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5D78E 50%, #D4AF37 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.rule-gold { height: 1px; background: linear-gradient(90deg, transparent, #D4AF37, transparent); }
