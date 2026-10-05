@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Car, FileText, Plus, Printer, RotateCcw, Settings2, Trash2, Download, Stamp } from 'lucide-react';
 import {
   DEFAULT_SETTINGS,
+  FEE_DISCLOSURE,
+  LOAN_SUPERVISION_NOTE,
   MOBILE_SERVICE,
   NOTARY_SERVICES,
   PACKAGES,
@@ -14,6 +16,7 @@ import {
   money,
   packageFor,
   perDocument,
+  travelTier,
   type LineItem,
   type NotaryService,
   type PackageId,
@@ -21,7 +24,7 @@ import {
 } from '@/lib/notary-data';
 import { buildNotaryPdf } from '@/lib/notary-pdf';
 
-const STORAGE_KEY = 'ms-notary-settings-v3';
+const STORAGE_KEY = 'ms-notary-settings-v4';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const newItem = (): LineItem => ({ id: uid(), service: NOTARY_SERVICES[0], documents: 1, packageId: null });
@@ -115,7 +118,8 @@ export default function Calculator() {
   const [number, setNumber] = useState('');
   const [client, setClient] = useState({ name: '', email: '', phone: '', address: '' });
   const [items, setItems] = useState<LineItem[]>([newItem()]);
-  const [travel, setTravel] = useState({ enabled: false, miles: 0, roundTrip: true });
+  const [travel, setTravel] = useState({ enabled: false, miles: 0, customFee: 0 });
+  const [extraActs, setExtraActs] = useState(0);
   const [printing, setPrinting] = useState({ enabled: false, pages: 0 });
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -147,8 +151,8 @@ export default function Calculator() {
   };
 
   const quote = useMemo(
-    () => calculateQuote({ items, travel, printing }, settings),
-    [items, travel, printing, settings],
+    () => calculateQuote({ items, extraActs, travel, printing }, settings),
+    [items, extraActs, travel, printing, settings],
   );
 
   const updateItem = (id: string, patch: Partial<LineItem>) =>
@@ -162,7 +166,8 @@ export default function Calculator() {
   const reset = () => {
     setClient({ name: '', email: '', phone: '', address: '' });
     setItems([newItem()]);
-    setTravel({ enabled: false, miles: 0, roundTrip: true });
+    setTravel({ enabled: false, miles: 0, customFee: 0 });
+    setExtraActs(0);
     setPrinting({ enabled: false, pages: 0 });
     setNotes('');
     setNumber(newNumber());
@@ -225,25 +230,54 @@ export default function Calculator() {
           <div className="mb-6 rounded-2xl border border-gold-600/40 bg-dark-800 p-5 sm:p-6">
             <h2 className="mb-1 font-heading text-xl text-gold-300">Rates</h2>
             <p className="mb-4 text-sm text-gray-400">Saved on this device. Change anytime — totals update instantly.</p>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-              {rate('notarialFee', 'Notarial act fee', 0.5, '$')}
-              {rate('convenienceFee', 'Convenience fee', 1, '$')}
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {rate('notarialFee', 'Notarial act fee (GA: $2)', 0.5, '$')}
+              {rate('convenienceFee', 'Mobile / convenience fee', 1, '$')}
               {rate('perPage', 'Print / page', 0.05, '$')}
-              {rate('perMile', 'Per mile', 0.01, '$')}
-              {rate('freeMiles', 'Free miles', 1, undefined, 'mi')}
-              {rate('tripFee', 'Trip fee', 1, '$')}
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">Standard minimum</span>
+                <NumField
+                  label="Standard appointment minimum"
+                  value={settings.standardMinimum}
+                  prefix="$"
+                  onChange={(n) => saveSettings({ ...settings, standardMinimum: n })}
+                />
+              </label>
             </div>
-            <h2 className="mb-1 mt-6 font-heading text-xl text-gold-300">Loan-signing package fees</h2>
+
+            <h2 className="mb-1 mt-6 font-heading text-xl text-gold-300">Travel tiers (one-way miles)</h2>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              {(
+                [
+                  ['includedMiles', 'Included up to', 'mi'],
+                  ['tier2Max', 'Tier 2 up to', 'mi'],
+                  ['tier2Fee', 'Tier 2 fee', '$'],
+                  ['tier3Max', 'Tier 3 up to', 'mi'],
+                  ['tier3Fee', 'Tier 3 fee', '$'],
+                ] as const
+              ).map(([k, label, unit]) => (
+                <label key={k} className="block">
+                  <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">{label}</span>
+                  <NumField
+                    label={label}
+                    value={settings.travel[k]}
+                    prefix={unit === '$' ? '$' : undefined}
+                    suffix={unit === 'mi' ? 'mi' : undefined}
+                    onChange={(n) => saveSettings({ ...settings, travel: { ...settings.travel, [k]: n } })}
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">Beyond tier 3 the job needs a custom quote.</p>
+
+            <h2 className="mb-1 mt-6 font-heading text-xl text-gold-300">Loan document signing — starting fees</h2>
             <p className="mb-3 text-sm text-gray-400">
-              Flat fee per signing. Includes dual printing, travel (first {settings.rates.packageFreeMiles} mi
-              driven) and scan-backs.
+              Includes dual printing, scan-backs and travel within {settings.travel.includedMiles} mi.
             </p>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
               {PACKAGES.map((p) => (
                 <label key={p.id} className="block">
-                  <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">
-                    {p.label} (${p.low}–${p.high})
-                  </span>
+                  <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">{p.label}</span>
                   <NumField
                     label={`${p.label} fee`}
                     value={settings.packageFees[p.id]}
@@ -254,11 +288,12 @@ export default function Calculator() {
                   />
                 </label>
               ))}
-              <div className="md:col-span-1">{rate('packageFreeMiles', 'Package: miles included', 5, undefined, 'mi')}</div>
             </div>
-            <h2 className="mb-1 mt-6 font-heading text-xl text-gold-300">Minimum charge per service</h2>
+
+            <h2 className="mb-1 mt-6 font-heading text-xl text-gold-300">Mobile appointment minimums</h2>
             <p className="mb-3 text-sm text-gray-400">
-              A service line never bills less than this, even if documents × {money(perDocument(settings.rates))} is lower.
+              A mobile appointment never bills less than the highest minimum among its services. Standard
+              appointments use the standard minimum ({money(settings.standardMinimum)}).
             </p>
             <div className="grid gap-x-6 gap-y-3 md:grid-cols-2">
               {NOTARY_SERVICES.map((svc) => (
@@ -266,11 +301,11 @@ export default function Calculator() {
                   <span className="text-sm text-gray-200">{svc}</span>
                   <div className="w-28 shrink-0">
                     <NumField
-                      label={`${svc} minimum`}
-                      value={settings.minimums[svc] ?? 0}
+                      label={`${svc} mobile minimum`}
+                      value={settings.mobileMinimums[svc] ?? 0}
                       prefix="$"
                       onChange={(n) =>
-                        saveSettings({ ...settings, minimums: { ...settings.minimums, [svc]: n } })
+                        saveSettings({ ...settings, mobileMinimums: { ...settings.mobileMinimums, [svc]: n } })
                       }
                     />
                   </div>
@@ -397,7 +432,7 @@ export default function Calculator() {
                               <option value="">Single document(s) — per-document rate</option>
                               {PACKAGES.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                  Loan signing: {p.label} (${p.low}–${p.high})
+                                  Loan signing: {p.label} (from {money(p.fee)})
                                 </option>
                               ))}
                             </select>
@@ -415,7 +450,8 @@ export default function Calculator() {
                           )}
                           {pkg && (
                             <p className="text-xs text-gray-500 sm:col-span-2">
-                              {pkg.why} Includes: {PACKAGE_INCLUDES.map((t) => t.split(' (')[0].toLowerCase()).join(', ')}.
+                              Includes: {PACKAGE_INCLUDES.map((t) => t.split(' (')[0].toLowerCase()).join(', ')}.{' '}
+                              {LOAN_SUPERVISION_NOTE}
                             </p>
                           )}
                         </div>
@@ -431,8 +467,20 @@ export default function Calculator() {
                 <Plus size={16} /> Add another service
               </button>
               <p className="mt-3 text-xs text-gray-500">
-                {money(perDocument(settings.rates))} per document: {money(settings.rates.notarialFee)} notarial act fee + {money(settings.rates.convenienceFee)} convenience fee. Each service has a minimum charge.
+                {money(perDocument(settings.rates))} per document: {money(settings.rates.notarialFee)} notarial act +{' '}
+                {money(settings.rates.convenienceFee)} mobile/convenience service. Minimum {money(settings.standardMinimum)}{' '}
+                for a standard appointment; mobile appointments start at {money(settings.mobileMinimums[MOBILE_SERVICE] ?? 50)}.
               </p>
+              <label className="mt-4 block max-w-xs">
+                <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">
+                  Additional notarial acts ({money(settings.rates.notarialFee)} each)
+                </span>
+                <NumField
+                  label="Additional notarial acts"
+                  value={extraActs}
+                  onChange={(n) => setExtraActs(Math.floor(n))}
+                />
+              </label>
             </Card>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -441,7 +489,7 @@ export default function Calculator() {
                   <Toggle
                     checked={travel.enabled}
                     onChange={(v) => setTravel({ ...travel, enabled: v })}
-                    label="Mobile job (charge for driving)"
+                    label="Mobile job (notary travels to client)"
                   />
                   {travel.enabled && (
                     <>
@@ -457,19 +505,46 @@ export default function Calculator() {
                           onChange={(n) => setTravel({ ...travel, miles: n })}
                         />
                       </label>
-                      <Toggle
-                        checked={travel.roundTrip}
-                        onChange={(v) => setTravel({ ...travel, roundTrip: v })}
-                        label="Bill round trip"
-                      />
-                      <p className="text-xs text-gray-500">
-                        {money(settings.rates.perMile)}/mi
-                        {quote.hasPackage
-                          ? `. Loan-signing packages include the first ${settings.rates.packageFreeMiles} mi driven.`
-                          : `${settings.rates.freeMiles > 0 ? `, first ${settings.rates.freeMiles} mi free` : ''}${
-                              settings.rates.tripFee > 0 ? `, plus ${money(settings.rates.tripFee)} trip fee` : ''
-                            }`}
-                      </p>
+                      {quote.needsCustomTravel && (
+                        <label className="block">
+                          <span className="mb-1 block text-xs uppercase tracking-wider text-amber-300">
+                            Over {settings.travel.tier3Max} mi — enter custom travel quote
+                          </span>
+                          <NumField
+                            label="Custom travel quote"
+                            value={travel.customFee}
+                            prefix="$"
+                            onChange={(n) => setTravel({ ...travel, customFee: n })}
+                          />
+                        </label>
+                      )}
+                      <ul className="space-y-0.5 text-xs text-gray-500">
+                        {(
+                          [
+                            ['included', `0–${settings.travel.includedMiles} mi: included`],
+                            [
+                              'tier2',
+                              `${settings.travel.includedMiles + 1}–${settings.travel.tier2Max} mi: +${money(settings.travel.tier2Fee)}`,
+                            ],
+                            [
+                              'tier3',
+                              `${settings.travel.tier2Max + 1}–${settings.travel.tier3Max} mi: +${money(settings.travel.tier3Fee)}`,
+                            ],
+                            ['custom', `${settings.travel.tier3Max}+ mi: custom quote`],
+                          ] as const
+                        ).map(([id, text]) => (
+                          <li
+                            key={id}
+                            className={
+                              travel.miles > 0 && travelTier(travel.miles, settings.travel) === id
+                                ? 'font-semibold text-gold-300'
+                                : ''
+                            }
+                          >
+                            {text}
+                          </li>
+                        ))}
+                      </ul>
                     </>
                   )}
                 </div>
@@ -582,11 +657,17 @@ export default function Calculator() {
 
               <button
                 onClick={download}
-                disabled={busy || quote.lines.length === 0}
+                disabled={busy || quote.lines.length === 0 || (quote.needsCustomTravel && travel.customFee <= 0)}
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gold-gradient py-3.5 font-semibold text-black transition hover:opacity-90 disabled:opacity-40"
               >
                 <Download size={18} /> {busy ? 'Building PDF…' : `Download ${kind} PDF`}
               </button>
+              {quote.needsCustomTravel && travel.customFee <= 0 && (
+                <p className="mt-2 text-xs text-amber-300">Enter the custom travel quote to enable the PDF.</p>
+              )}
+              <p className="mt-4 text-[11px] leading-relaxed text-gray-500">
+                <span className="font-semibold text-gray-400">Fee Disclosure:</span> {FEE_DISCLOSURE}
+              </p>
               <button
                 onClick={reset}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dark-400 py-2.5 text-sm text-gray-300 hover:bg-dark-600"

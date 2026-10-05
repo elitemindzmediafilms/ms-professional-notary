@@ -1,4 +1,4 @@
-import { money, type Business, type Quote } from '@/lib/notary-data';
+import { FEE_DISCLOSURE, money, type Business, type Quote } from '@/lib/notary-data';
 
 export interface PdfClient {
   name: string;
@@ -205,7 +205,25 @@ export async function buildNotaryPdf(o: PdfOptions): Promise<{ blob: Blob; filen
     doc.setTextColor(...INK);
     const notes = doc.splitTextToSize(o.jobNotes.trim(), W - M * 2) as string[];
     doc.text(notes, M, y);
+    y += notes.length * 12;
   }
+
+  // ── Fee disclosure ──
+  y += o.jobNotes.trim() ? 18 : 0;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const disclosure = doc.splitTextToSize(FEE_DISCLOSURE, W - M * 2) as string[];
+  if (y + 24 + disclosure.length * 10 > H - 80) {
+    doc.addPage();
+    y = M;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...GOLD);
+  doc.text('FEE DISCLOSURE', M, y + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...MUTED);
+  doc.text(disclosure, M, y + 20);
 
   // ── Footer on every page ──
   const pages = doc.getNumberOfPages();

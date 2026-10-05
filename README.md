@@ -4,8 +4,8 @@ Standalone website + estimate/invoice calculator. Independent of the Elite Mindz
 own dependencies, own deploy.
 
 - `/` — services, pricing guide, contact
-- `/quote` — calculator (per-document fee with per-service minimums, loan-signing packages, mileage, printing) and PDF export
-- `/quote?owner=1` — adds the owner panel to edit rates, minimums, package fees and the business info printed on PDFs (saved in that browser)
+- `/quote` — estimate/invoice calculator: $2 notarial act + $23 mobile/convenience per document, appointment minimums (standard $25, mobile $50/$75), one-way travel tiers, loan-signing support packages, printing, PDF export
+- `/quote?owner=1` — adds the owner panel to edit rates, minimums, travel tiers, package fees and the business info printed on PDFs (saved in that browser)
 
 Defaults live in `lib/notary-data.ts`.
 

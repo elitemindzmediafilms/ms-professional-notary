@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import {
   DEFAULT_SETTINGS,
+  FEE_DISCLOSURE,
+  LOAN_SUPERVISION_NOTE,
   NOTARY_SERVICES,
   PACKAGES,
   PACKAGE_INCLUDES,
@@ -22,7 +24,7 @@ import {
   perDocument,
 } from '@/lib/notary-data';
 
-const { business, rates, minimums } = DEFAULT_SETTINGS;
+const { business, rates, standardMinimum, mobileMinimums, travel } = DEFAULT_SETTINGS;
 const tel = `tel:${business.phone.replace(/\D/g, '')}`;
 
 const WHY = [
@@ -32,6 +34,15 @@ const WHY = [
   { Icon: CalendarClock, label: 'Flexible scheduling' },
   { Icon: Car, label: 'Mobile notary available' },
 ];
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-dark-400/60 pb-2 last:border-0">
+      <dt className="text-gray-300">{k}</dt>
+      <dd className="text-right font-medium text-gold-300">{v}</dd>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -88,9 +99,8 @@ export default function Home() {
       <section id="services" className="mx-auto max-w-6xl scroll-mt-4 px-4 py-16">
         <h2 className="font-heading text-3xl text-gold-300 sm:text-4xl">Notary services</h2>
         <p className="mt-2 text-gray-400">
-          We can assist with the following. Each document is {money(perDocument(rates))}: a{' '}
-          {money(rates.notarialFee)} notarial act fee plus a {money(rates.convenienceFee)} convenience fee, with a
-          minimum charge per service.
+          We can assist with the following. Standard appointments start at {money(standardMinimum)}; mobile
+          appointments start at {money(mobileMinimums['General Notary Work'])}.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {NOTARY_SERVICES.map((s) => {
@@ -101,8 +111,8 @@ export default function Home() {
                 <div>
                   <p className="font-medium text-white">{s}</p>
                   <p className="text-xs text-gray-500">
-                    From {money(minimums[s])}
-                    {loan && ' · flat-fee loan signings available'}
+                    Standard from {money(standardMinimum)} · Mobile from {money(mobileMinimums[s])}
+                    {loan && ' · loan signing support available'}
                   </p>
                 </div>
               </div>
@@ -114,69 +124,64 @@ export default function Home() {
       {/* Pricing */}
       <section id="pricing" className="scroll-mt-4 border-y border-gold-600/30 bg-dark-800 py-16">
         <div className="mx-auto max-w-6xl px-4">
-          <h2 className="font-heading text-3xl text-gold-300 sm:text-4xl">Pricing &amp; what to expect</h2>
+          <h2 className="font-heading text-3xl text-gold-300 sm:text-4xl">Pricing</h2>
+          <p className="mt-2 text-gray-400">Clear, up-front pricing — disclosed before your appointment.</p>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
-              <p className="text-xs uppercase tracking-widest text-gold-500">Standard notarizations</p>
-              <p className="mt-2 font-heading text-4xl text-white">{money(perDocument(rates))}</p>
-              <p className="text-sm text-gray-400">per document / signed document</p>
-              <p className="mt-4 text-sm text-gray-400">
-                {money(rates.notarialFee)} notarial act fee (the Georgia per-act rate) + {money(rates.convenienceFee)}{' '}
-                convenience fee for scheduling, handling and mobile availability. Each service has a minimum charge —
-                see “From” prices above.
+              <p className="text-xs uppercase tracking-widest text-gold-500">Standard notary services</p>
+              <dl className="mt-4 space-y-3 text-sm">
+                <Row k="Georgia notarial act" v={`${money(rates.notarialFee)} per notarial act`} />
+                <Row k="Mobile / convenience service" v={`starting at ${money(rates.convenienceFee)}`} />
+                <Row k="Standard appointment minimum" v={money(standardMinimum)} />
+              </dl>
+              <p className="mt-4 text-xs text-gray-500">
+                Together that is {money(perDocument(rates))} per document.
               </p>
             </div>
+
             <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
               <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-gold-500">
-                <Car size={14} /> Mobile travel
+                <Car size={14} /> Mobile notary services
               </p>
-              <p className="mt-2 font-heading text-4xl text-white">{money(rates.perMile)}</p>
-              <p className="text-sm text-gray-400">per mile driven</p>
-              <p className="mt-4 text-sm text-gray-400">Round trip, by appointment.</p>
-            </div>
-            <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
-              <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-gold-500">
-                <Printer size={14} /> Printing
-              </p>
-              <p className="mt-2 font-heading text-4xl text-white">{money(rates.perPage)}</p>
-              <p className="text-sm text-gray-400">per printed page</p>
-              <p className="mt-4 text-sm text-gray-400">Loan-signing packages include their own printing.</p>
+              <dl className="mt-4 space-y-3 text-sm">
+                <Row k="General mobile notary" v={`${money(mobileMinimums['General Notary Work'])} minimum`} />
+                <Row k="Power of attorney" v={`${money(mobileMinimums['Power of Attorney Documents'])} minimum`} />
+                <Row k="Business documents" v={`${money(mobileMinimums['Business Documents'])} minimum`} />
+                <Row
+                  k="Wills & estate documents"
+                  v={`${money(mobileMinimums['Wills & Estate Planning Documents'])} minimum`}
+                />
+                <Row k="Additional statutory notarial acts" v={`${money(rates.notarialFee)} each`} />
+              </dl>
             </div>
           </div>
 
-          <h3 className="mt-14 font-heading text-2xl text-white">Mortgage &amp; real estate loan signings</h3>
-          <p className="mt-2 max-w-3xl text-gray-400">
-            Unlike a quick walk-in notarization, a loan signing is a flat fee that covers a lot of back-end work. The
-            total depends on the type of transaction:
-          </p>
-
-          <div className="mt-6 overflow-x-auto rounded-2xl border border-dark-400">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="bg-black text-xs uppercase tracking-widest text-gold-500">
-                <tr>
-                  <th className="px-5 py-3">Transaction type</th>
-                  <th className="px-5 py-3">Typical range</th>
-                  <th className="px-5 py-3">Why it varies</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PACKAGES.map((p) => (
-                  <tr key={p.id} className="border-t border-dark-400 bg-dark-700">
-                    <td className="px-5 py-4 font-medium text-white">{p.label}</td>
-                    <td className="px-5 py-4 text-gold-300">
-                      {money(p.low)} – {money(p.high)}
-                    </td>
-                    <td className="px-5 py-4 text-gray-400">{p.why}</td>
+          <h3 className="mt-14 font-heading text-2xl text-white">Loan document signing support</h3>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div className="overflow-hidden rounded-2xl border border-dark-400">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-black text-xs uppercase tracking-widest text-gold-500">
+                  <tr>
+                    <th className="px-5 py-3">Package</th>
+                    <th className="px-5 py-3">Starting at</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+                </thead>
+                <tbody>
+                  {PACKAGES.map((p) => (
+                    <tr key={p.id} className="border-t border-dark-400 bg-dark-700">
+                      <td className="px-5 py-4 font-medium text-white">{p.label}</td>
+                      <td className="px-5 py-4 text-gold-300">
+                        {money(p.fee)}
+                        {p.to ? `–${money(p.to)}` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="rounded-2xl border border-gold-600/40 bg-dark-700 p-6">
-              <h4 className="font-heading text-xl text-gold-300">Included in every loan signing</h4>
+              <h4 className="font-heading text-xl text-gold-300">Included with every loan signing</h4>
               <ul className="mt-4 space-y-3 text-sm text-gray-200">
                 {PACKAGE_INCLUDES.map((t) => (
                   <li key={t} className="flex gap-3">
@@ -185,27 +190,34 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-                <ScanLine size={14} /> Scan-backs let the lender clear funding without waiting for mail.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
-              <h4 className="font-heading text-xl text-gold-300">Where your total comes from</h4>
-              <ul className="mt-4 space-y-3 text-sm text-gray-300">
-                <li>
-                  <span className="font-medium text-white">Notary sourced by your title or escrow company</span> —
-                  about $75–$150, usually bundled into your settlement fees.
-                </li>
-                <li>
-                  <span className="font-medium text-white">Independent mobile signing agent</span> hired directly to
-                  come to your home or office — about $150–$250+, for their time and direct travel.
-                </li>
-              </ul>
-              <p className="mt-4 text-xs text-gray-500">
-                Packages include travel for the first {rates.packageFreeMiles} miles driven; mileage applies beyond that.
+              <p className="mt-4 flex items-start gap-2 text-xs text-gray-400">
+                <ScanLine size={14} className="mt-0.5 shrink-0" /> {LOAN_SUPERVISION_NOTE}
               </p>
             </div>
           </div>
+
+          <h3 className="mt-14 font-heading text-2xl text-white">Travel</h3>
+          <p className="mt-1 text-sm text-gray-400">Distance is measured one way from our base to your signing location.</p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              [`0–${travel.includedMiles} miles`, 'Included with qualifying mobile service'],
+              [`${travel.includedMiles + 1}–${travel.tier2Max} miles`, `+${money(travel.tier2Fee)}`],
+              [`${travel.tier2Max + 1}–${travel.tier3Max} miles`, `+${money(travel.tier3Fee)}`],
+              [`${travel.tier3Max}+ miles`, 'Custom quote'],
+            ].map(([a, b]) => (
+              <div key={a} className="rounded-xl border border-dark-400 bg-dark-700 p-5">
+                <p className="font-heading text-xl text-white">{a}</p>
+                <p className="mt-1 text-sm text-gold-300">{b}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-sm text-gray-400">
+            <Printer size={14} /> Printing for non-loan documents is {money(rates.perPage)} per page.
+          </p>
+
+          <p className="mt-10 rounded-xl border border-dark-400 bg-black/40 p-5 text-xs leading-relaxed text-gray-400">
+            <span className="font-semibold text-gray-300">Fee Disclosure:</span> {FEE_DISCLOSURE}
+          </p>
 
           <div className="mt-10 text-center">
             <Link
