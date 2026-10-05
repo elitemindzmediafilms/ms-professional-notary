@@ -1,2 +1,5 @@
 /** @type {import('next').NextConfig} */
-module.exports = {};
+module.exports = {
+  // Fully static site -> `out/`, served by Cloudflare Pages.
+  output: 'export',
+};
