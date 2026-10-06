@@ -14,21 +14,27 @@ npm install
 npm run dev
 ```
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare (Workers static assets)
 
-The site is fully static (`next.config.js` uses `output: 'export'`), so it builds to `out/`.
+The site is fully static (`next.config.js` uses `output: 'export'`), so it builds to `out/`, which `wrangler.toml` serves as static assets.
 
-**Option A — connect the GitHub repo (auto-deploys on every push)**
-1. Cloudflare dashboard -> Workers & Pages -> Create -> Pages -> Connect to Git -> pick `ms-professional-notary`.
-2. Framework preset: **Next.js (Static HTML Export)**. Build command: `npm run build`. Build output directory: `out`.
-3. Environment variable: `NODE_VERSION` = `20`.
-4. Save and Deploy. Add the custom domain under the project's Custom domains tab.
+**Connect the GitHub repo (auto-deploys on every push to `main`)**
 
-**Option B — deploy from your computer**
+Workers & Pages -> Create -> Import a repository -> `ms-professional-notary`, then:
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` |
+| Build variables | none needed |
+
+(The deploy command is a command, not a folder; the `out` folder is configured in `wrangler.toml`.)
+
+**Or deploy from your computer**
 ```
 npx wrangler login
-npm run deploy      # builds, then `wrangler pages deploy out`
+npm run deploy      # builds, then `wrangler deploy`
 ```
-The first run creates the Pages project named in `wrangler.toml`.
 
-`public/_headers` sets security and caching headers. `npm run preview` serves the built site locally using Cloudflare's runtime.
+`public/_headers` sets security and caching headers. `npm run preview` serves the built site locally on Cloudflare's runtime. Add a custom domain under the Worker's Settings -> Domains & Routes.

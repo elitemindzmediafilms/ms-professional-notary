@@ -1,3 +1,7 @@
 name = "ms-professional-notary"
 compatibility_date = "2025-01-01"
-pages_build_output_dir = "./out"
+
+# Static site: serve the Next.js export from ./out with Workers static assets.
+[assets]
+directory = "./out"
+not_found_handling = "404-page"
