@@ -185,6 +185,21 @@ export default function Calculator() {
         business: settings.business,
         quote,
       });
+      // Log the client + totals to the CRM and notify the owner. Fire-and-forget: never blocks the PDF.
+      if (client.name || client.email || client.phone) {
+        fetch('/api/estimate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            kind,
+            number,
+            client,
+            total: quote.total,
+            lines: quote.lines.map((l) => ({ label: l.label, amount: l.amount })),
+          }),
+          keepalive: true,
+        }).catch(() => {});
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -367,6 +382,9 @@ export default function Calculator() {
                   onChange={(e) => setClient({ ...client, address: e.target.value })}
                 />
               </div>
+              <p className="mt-3 text-xs text-gray-500">
+                When you download a PDF, these contact details and the estimate total are sent to M&amp;S so we can follow up.
+              </p>
             </Card>
 
             <Card title="Notary services" icon={<Stamp size={20} />}>

@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local `npm run preview`. Never commit real values.
+RESEND_API_KEY=
+HUBSPOT_TOKEN=

@@ -1,7 +1,21 @@
 name = "ms-professional-notary"
+main = "worker/index.ts"
 compatibility_date = "2025-01-01"
 
-# Static site: serve the Next.js export from ./out with Workers static assets.
+# Static site (Next.js export). Only /api/* runs the Worker; everything else is served straight from ./out.
 [assets]
 directory = "./out"
+binding = "ASSETS"
 not_found_handling = "404-page"
+run_worker_first = ["/api/*"]
+
+[vars]
+NOTIFY_EMAIL = "mwrightsr.ganotary@gmail.com"
+FROM_EMAIL = "M&S Professional Notary <onboarding@resend.dev>"
+CLIENT_CONFIRMATIONS = "false"
+
+# Secrets (add in Cloudflare -> Worker -> Settings -> Variables and Secrets, type "Secret"):
+#   RESEND_API_KEY, HUBSPOT_TOKEN
+
+[observability]
+enabled = true

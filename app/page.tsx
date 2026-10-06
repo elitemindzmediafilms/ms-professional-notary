@@ -65,8 +65,14 @@ export default function Home() {
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             <Link
-              href="/quote"
+              href="/request"
               className="rounded-xl bg-gold-gradient px-7 py-3.5 font-semibold text-black hover:opacity-90"
+            >
+              Request an appointment
+            </Link>
+            <Link
+              href="/quote"
+              className="rounded-xl border border-gold-600/70 px-7 py-3.5 font-semibold text-gold-300 hover:bg-dark-600"
             >
               Get an estimate
             </Link>
@@ -235,6 +241,12 @@ export default function Home() {
         <div className="mx-auto max-w-3xl px-4">
           <h2 className="font-heading text-3xl text-gold-gradient sm:text-5xl">Contact us today</h2>
           <p className="mt-2 text-sm uppercase tracking-[0.35em] text-gray-300">For your notary needs</p>
+          <Link
+            href="/request"
+            className="mt-6 inline-block rounded-xl bg-gold-gradient px-7 py-3.5 font-semibold text-black hover:opacity-90"
+          >
+            Request an appointment
+          </Link>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-10">
             <a href={tel} className="flex items-center gap-3 text-2xl font-semibold hover:text-gold-300">
               <Phone className="text-gold-500" /> {business.phone}

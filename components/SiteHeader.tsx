@@ -23,8 +23,11 @@ export default function SiteHeader() {
               {n.label}
             </Link>
           ))}
-          <Link href="/quote" className="rounded-lg bg-black px-4 py-2 text-gold-300 hover:bg-dark-600">
-            Get an estimate
+          <Link href="/quote" className="hidden hover:text-gold-700 sm:block">
+            Estimate
+          </Link>
+          <Link href="/request" className="rounded-lg bg-black px-4 py-2 text-gold-300 hover:bg-dark-600">
+            Request appointment
           </Link>
           <a href={`tel:${phone.replace(/\D/g, '')}`} className="hidden items-center gap-1.5 md:flex hover:text-gold-700">
             <Phone size={15} /> {phone}

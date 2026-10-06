@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
+import ClickTracker from '@/components/ClickTracker';
 
 export const metadata: Metadata = {
   title: 'M&S Professional Notary Services | Trust. Accuracy. Convenience.',
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />
+        <ClickTracker />
       </body>
     </html>
   );

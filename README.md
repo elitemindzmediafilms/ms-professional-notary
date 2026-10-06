@@ -38,3 +38,26 @@ npm run deploy      # builds, then `wrangler deploy`
 ```
 
 `public/_headers` sets security and caching headers. `npm run preview` serves the built site locally on Cloudflare's runtime. Add a custom domain under the Worker's Settings -> Domains & Routes.
+
+## Lead capture backend (email + HubSpot)
+
+`worker/index.ts` is a Cloudflare Worker that runs in front of the static site. Only `/api/*` reaches it.
+
+| Endpoint | Fired by | What happens |
+|---|---|---|
+| `POST /api/lead` | "Request an appointment" form (`/request`) | HubSpot contact created/updated by email + a note on the contact; email to the owner; optional confirmation email to the client |
+| `POST /api/estimate` | Downloading an estimate/invoice PDF with client details filled in | Same, with the line items and total |
+| `POST /api/click` | Tapping a phone or email link | Anonymous log line (kind + page only), visible under the Worker's Logs |
+
+Spam protection: hidden honeypot field, same-origin check, payload size limit, server-side validation. For more, add a Cloudflare WAF rate-limiting rule on `/api/*`.
+
+### One-time setup
+
+1. **Resend** (email): create an account at resend.com, then API Keys -> Create. Until you verify a sending domain, Resend can only deliver to the email you signed up with, so sign up with `mwrightsr.ganotary@gmail.com`. To email clients too, verify a domain in Resend, change `FROM_EMAIL` in `wrangler.toml`, and set `CLIENT_CONFIRMATIONS = "true"`.
+2. **HubSpot** (CRM): Settings -> Integrations -> Private Apps -> Create. Scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`. If notes fail with a 403, also grant the notes/engagements scope. Copy the access token.
+3. **Cloudflare**: Worker -> Settings -> Variables and Secrets -> Add, type **Secret**:
+   - `RESEND_API_KEY`
+   - `HUBSPOT_TOKEN`
+4. Change `NOTIFY_EMAIL` in `wrangler.toml` if notifications should go somewhere else, then push to `main`.
+
+Secrets added in the dashboard persist across deploys. If a service is unconfigured, the other still works, and failures are logged without personal data.
