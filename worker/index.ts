@@ -11,6 +11,8 @@ interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   RESEND_API_KEY?: string;
   HUBSPOT_TOKEN?: string;
+  /** Optional HubSpot user (owner) id that follow-up tasks are assigned to. Without it tasks are unassigned. */
+  HUBSPOT_OWNER_ID?: string;
   NOTIFY_EMAIL: string;
   FROM_EMAIL: string;
   /** "true" once the sending domain is verified in Resend; enables client confirmation emails. */
@@ -84,7 +86,15 @@ async function hubspot(env: Env, path: string, body: unknown) {
   return res.json() as Promise<any>;
 }
 
-async function saveToCrm(env: Env, c: Contact, noteHtml: string) {
+interface FollowUp {
+  subject: string;
+  body: string;
+  /** Minutes from now until the task is due. */
+  dueInMinutes: number;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+async function saveToCrm(env: Env, c: Contact, noteHtml: string, followUp?: FollowUp) {
   if (!env.HUBSPOT_TOKEN) throw new Error('HUBSPOT_TOKEN not set');
   if (!c.email) throw new Error('no email: skipped CRM');
   const [first, ...rest] = c.name.split(/\s+/).filter(Boolean);
@@ -107,6 +117,29 @@ async function saveToCrm(env: Env, c: Contact, noteHtml: string) {
       { to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] },
     ],
   });
+
+  if (followUp) {
+    // Task on the contact (association type 204 = task -> contact). Its own try so a missing
+    // task scope never loses the contact or note that were already saved.
+    try {
+      await hubspot(env, '/crm/v3/objects/tasks', {
+        properties: {
+          hs_timestamp: new Date(Date.now() + followUp.dueInMinutes * 60_000).toISOString(),
+          hs_task_subject: followUp.subject,
+          hs_task_body: followUp.body,
+          hs_task_status: 'NOT_STARTED',
+          hs_task_priority: followUp.priority,
+          hs_task_type: 'CALL',
+          ...(env.HUBSPOT_OWNER_ID ? { hubspot_owner_id: env.HUBSPOT_OWNER_ID } : {}),
+        },
+        associations: [
+          { to: { id: contactId }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 204 }] },
+        ],
+      });
+    } catch (e) {
+      console.error('follow-up task failed:', (e as Error).message);
+    }
+  }
 }
 
 // ---------- shared pipeline ----------
@@ -118,6 +151,7 @@ async function notify(
     rows: [string, string][];
     extraHtml?: string;
     noteHtml: string;
+    followUp?: FollowUp;
     confirmation?: { subject: string; html: string };
   },
 ) {
@@ -132,7 +166,7 @@ async function notify(
 
   const jobs: Promise<unknown>[] = [
     sendEmail(env, { to: env.NOTIFY_EMAIL, subject: opts.subject, html, replyTo: opts.contact.email || undefined }),
-    saveToCrm(env, opts.contact, opts.noteHtml),
+    saveToCrm(env, opts.contact, opts.noteHtml, opts.followUp),
   ];
   const wantsConfirm = env.CLIENT_CONFIRMATIONS === 'true' && opts.confirmation && opts.contact.email;
   if (wantsConfirm) {
@@ -180,6 +214,15 @@ async function handleLead(env: Env, b: any) {
     contact,
     rows,
     noteHtml,
+    followUp: {
+      subject: `Call ${contact.name} — appointment request${service ? ` (${service})` : ''}`,
+      body: rows
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n'),
+      dueInMinutes: 60,
+      priority: 'HIGH',
+    },
     confirmation: {
       subject: 'We received your appointment request — M&S Professional Notary Services',
       html: `<div style="font-family:Arial,sans-serif;font-size:15px"><p>Hi ${esc(contact.name.split(' ')[0])},</p><p>Thank you for contacting M&amp;S Professional Notary Services. We received your request and will reach out shortly to confirm your appointment.</p><p>Need us sooner? Call or text ${esc('943-255-4501')}.</p><p style="color:#666;font-size:12px">M&amp;S Professional Notary Services does not provide legal advice or prepare legal documents.</p></div>`,
@@ -216,6 +259,12 @@ async function handleEstimate(env: Env, b: any) {
     contact,
     rows,
     noteHtml,
+    followUp: {
+      subject: `Follow up on ${kind.toLowerCase()} ${number} (${money(total)}) — ${contact.name || contact.email}`,
+      body: lineText.join('\n'),
+      dueInMinutes: 24 * 60,
+      priority: 'MEDIUM',
+    },
   });
   return ok ? json({ ok: true }) : json({ ok: false }, 502);
 }

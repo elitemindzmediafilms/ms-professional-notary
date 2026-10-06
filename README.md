@@ -45,8 +45,8 @@ npm run deploy      # builds, then `wrangler deploy`
 
 | Endpoint | Fired by | What happens |
 |---|---|---|
-| `POST /api/lead` | "Request an appointment" form (`/request`) | HubSpot contact created/updated by email + a note on the contact; email to the owner; optional confirmation email to the client |
-| `POST /api/estimate` | Downloading an estimate/invoice PDF with client details filled in | Same, with the line items and total |
+| `POST /api/lead` | "Request an appointment" form (`/request`) | HubSpot contact created/updated by email + a note and a **follow-up task** (call within 1 hour) on the contact; email to the owner; optional confirmation email to the client |
+| `POST /api/estimate` | Downloading an estimate/invoice PDF with client details filled in | Same, with the line items and total; follow-up task due in 24 hours |
 | `POST /api/click` | Tapping a phone or email link | Anonymous log line (kind + page only), visible under the Worker's Logs |
 
 Spam protection: hidden honeypot field, same-origin check, payload size limit, server-side validation. For more, add a Cloudflare WAF rate-limiting rule on `/api/*`.
@@ -54,10 +54,12 @@ Spam protection: hidden honeypot field, same-origin check, payload size limit, s
 ### One-time setup
 
 1. **Resend** (email): create an account at resend.com, then API Keys -> Create. Until you verify a sending domain, Resend can only deliver to the email you signed up with, so sign up with `mwrightsr.ganotary@gmail.com`. To email clients too, verify a domain in Resend, change `FROM_EMAIL` in `wrangler.toml`, and set `CLIENT_CONFIRMATIONS = "true"`.
-2. **HubSpot** (CRM): Settings -> Integrations -> Private Apps -> Create. Scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`. If notes fail with a 403, also grant the notes/engagements scope. Copy the access token.
+2. **HubSpot** (CRM): Settings -> Integrations -> Private Apps -> Create. Scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`. If notes or tasks fail with a 403, also grant the scope named in the error (notes and tasks are separate activity scopes). Copy the access token. Tasks are created as HubSpot tasks of type Call: high priority for appointment requests, medium for estimates.
 3. **Cloudflare**: Worker -> Settings -> Variables and Secrets -> Add, type **Secret**:
    - `RESEND_API_KEY`
    - `HUBSPOT_TOKEN`
+
+   Optional variable (not secret): `HUBSPOT_OWNER_ID` = the HubSpot user id the follow-up tasks are assigned to (so they show under your own Tasks). Find it in HubSpot -> Settings -> Users & Teams -> your user (the number in the page URL), or leave it unset and tasks are created unassigned.
 4. Change `NOTIFY_EMAIL` in `wrangler.toml` if notifications should go somewhere else, then push to `main`.
 
 Secrets added in the dashboard persist across deploys. If a service is unconfigured, the other still works, and failures are logged without personal data.
