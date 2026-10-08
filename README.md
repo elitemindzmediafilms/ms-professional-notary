@@ -71,7 +71,7 @@ The business base address is a **secret**, not code: it is never committed, neve
 
 Add in Cloudflare -> Worker -> Settings -> Variables and Secrets (type **Secret**):
 
-- `ORIGIN_ADDRESS` — the full street address, city, state and ZIP of your base.
+- `ORIGIN_ADDRESS` — the full street address, city, state and ZIP of your base. Add it under the Worker's **Settings -> Variables and Secrets** (runtime), not the Build section, and choose type **Secret**.
 - `GOOGLE_MAPS_API_KEY` *(recommended)* — enable **Routes API** on a Google Cloud project and create an API key restricted to that API. Without it the Worker falls back to OpenStreetMap (Nominatim + OSRM), which is free but best-effort and has fair-use limits.
 
 If `ORIGIN_ADDRESS` is not set, or a lookup fails, the calculator tells the visitor to enter the miles by hand. On the public page the miles field is locked to the calculated value once a lookup succeeds, so a quote can't be lowered by editing it.

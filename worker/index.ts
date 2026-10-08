@@ -336,7 +336,10 @@ async function distanceMeters(env: Env, destination: string): Promise<number> {
 async function handleDistance(env: Env, b: any) {
   const address = str(b?.address, 200);
   if (address.length < 8 || !/\d/.test(address)) return json({ ok: false, error: 'Enter a full street address.' }, 400);
-  if (!env.ORIGIN_ADDRESS) return json({ ok: false, error: 'Distance lookup is unavailable.' }, 503);
+  if (!env.ORIGIN_ADDRESS) {
+    console.error('ORIGIN_ADDRESS is not set on this Worker (add it under Settings -> Variables and Secrets, type Secret).');
+    return json({ ok: false, error: 'Distance lookup is unavailable.' }, 503);
+  }
   const key = address.toLowerCase();
   let miles = distCache.get(key);
   if (miles === undefined) {

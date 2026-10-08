@@ -2,6 +2,9 @@ name = "ms-professional-notary"
 main = "worker/index.ts"
 compatibility_date = "2025-01-01"
 
+# Keep variables added in the Cloudflare dashboard (e.g. HUBSPOT_OWNER_ID) when deploying from git.
+keep_vars = true
+
 # Static site (Next.js export). Only /api/* runs the Worker; everything else is served straight from ./out.
 [assets]
 directory = "./out"
