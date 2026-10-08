@@ -24,7 +24,7 @@ import {
   perDocument,
 } from '@/lib/notary-data';
 
-const { business, rates, standardMinimum, mobileMinimums, travel } = DEFAULT_SETTINGS;
+const { business, rates, mobileMinimums, travel } = DEFAULT_SETTINGS;
 const tel = `tel:${business.phone.replace(/\D/g, '')}`;
 
 const WHY = [
@@ -105,8 +105,7 @@ export default function Home() {
       <section id="services" className="mx-auto max-w-6xl scroll-mt-4 px-4 py-16">
         <h2 className="font-heading text-3xl text-gold-300 sm:text-4xl">Notary services</h2>
         <p className="mt-2 text-gray-400">
-          We can assist with the following. Standard appointments start at {money(standardMinimum)}; mobile
-          appointments start at {money(mobileMinimums['General Notary Work'])}.
+          We can assist with the following. Mobile notary appointments start at {money(mobileMinimums['General Notary Work'])}.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {NOTARY_SERVICES.map((s) => {
@@ -117,7 +116,7 @@ export default function Home() {
                 <div>
                   <p className="font-medium text-white">{s}</p>
                   <p className="text-xs text-gray-500">
-                    Standard from {money(standardMinimum)} · Mobile from {money(mobileMinimums[s])}
+                    Mobile from {money(mobileMinimums[s])}
                     {loan && ' · loan signing support available'}
                   </p>
                 </div>
@@ -133,30 +132,18 @@ export default function Home() {
           <h2 className="font-heading text-3xl text-gold-300 sm:text-4xl">Pricing</h2>
           <p className="mt-2 text-gray-400">Clear, up-front pricing — disclosed before your appointment.</p>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
-              <p className="text-xs uppercase tracking-widest text-gold-500">Standard notary services</p>
-              <dl className="mt-4 space-y-3 text-sm">
-                <Row k="Georgia notarial act" v={`${money(rates.notarialFee)} per notarial act`} />
-                <Row k="Mobile / convenience service" v={`starting at ${money(rates.convenienceFee)}`} />
-                <Row k="Standard appointment minimum" v={money(standardMinimum)} />
-              </dl>
-              <p className="mt-4 text-xs text-gray-500">
-                Together that is {money(perDocument(rates))} per document.
-              </p>
-            </div>
-
+          <div className="mt-8 max-w-2xl">
             <div className="rounded-2xl border border-dark-400 bg-dark-700 p-6">
               <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-gold-500">
-                <Car size={14} /> Mobile notary services
+                <Car size={14} /> Mobile notary services — starting at
               </p>
               <dl className="mt-4 space-y-3 text-sm">
-                <Row k="General mobile notary" v={`${money(mobileMinimums['General Notary Work'])} minimum`} />
-                <Row k="Power of attorney" v={`${money(mobileMinimums['Power of Attorney Documents'])} minimum`} />
-                <Row k="Business documents" v={`${money(mobileMinimums['Business Documents'])} minimum`} />
+                <Row k="General mobile notary" v={money(mobileMinimums['General Notary Work'])} />
+                <Row k="Power of attorney" v={money(mobileMinimums['Power of Attorney Documents'])} />
+                <Row k="Business documents" v={money(mobileMinimums['Business Documents'])} />
                 <Row
                   k="Wills & estate documents"
-                  v={`${money(mobileMinimums['Wills & Estate Planning Documents'])} minimum`}
+                  v={money(mobileMinimums['Wills & Estate Planning Documents'])}
                 />
                 <Row k="Additional statutory notarial acts" v={`${money(rates.notarialFee)} each`} />
               </dl>

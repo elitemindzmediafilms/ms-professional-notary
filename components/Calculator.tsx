@@ -150,9 +150,13 @@ export default function Calculator() {
     }
   };
 
+  // The public page prices mobile appointments only. The standard (no-travel) option exists for the owner (?owner=1).
+  const effTravel = owner ? travel : { ...travel, enabled: true };
+
   const quote = useMemo(
-    () => calculateQuote({ items, extraActs, travel, printing }, settings),
-    [items, extraActs, travel, printing, settings],
+    () => calculateQuote({ items, extraActs, travel: effTravel, printing }, settings),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, extraActs, travel, owner, printing, settings],
   );
 
   const updateItem = (id: string, patch: Partial<LineItem>) =>
@@ -485,9 +489,9 @@ export default function Calculator() {
                 <Plus size={16} /> Add another service
               </button>
               <p className="mt-3 text-xs text-gray-500">
-                {money(perDocument(settings.rates))} per document: {money(settings.rates.notarialFee)} notarial act +{' '}
-                {money(settings.rates.convenienceFee)} mobile/convenience service. Minimum {money(settings.standardMinimum)}{' '}
-                for a standard appointment; mobile appointments start at {money(settings.mobileMinimums[MOBILE_SERVICE] ?? 50)}.
+                {owner
+                  ? `${money(perDocument(settings.rates))} per document: ${money(settings.rates.notarialFee)} notarial act + ${money(settings.rates.convenienceFee)} mobile/convenience service. Standard minimum ${money(settings.standardMinimum)}; mobile appointments start at ${money(settings.mobileMinimums[MOBILE_SERVICE] ?? 50)}.`
+                  : `Mobile notary appointments start at ${money(settings.mobileMinimums[MOBILE_SERVICE] ?? 50)} (Wills & Estate ${money(settings.mobileMinimums['Wills & Estate Planning Documents'])}). Travel within ${settings.travel.includedMiles} miles is included.`}
               </p>
               <label className="mt-4 block max-w-xs">
                 <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">
@@ -504,12 +508,16 @@ export default function Calculator() {
             <div className="grid gap-6 md:grid-cols-2">
               <Card title="Travel" icon={<Car size={20} />}>
                 <div className="space-y-4">
-                  <Toggle
-                    checked={travel.enabled}
-                    onChange={(v) => setTravel({ ...travel, enabled: v })}
-                    label="Mobile job (notary travels to client)"
-                  />
-                  {travel.enabled && (
+                  {owner ? (
+                    <Toggle
+                      checked={travel.enabled}
+                      onChange={(v) => setTravel({ ...travel, enabled: v })}
+                      label="Mobile job (notary travels to client)"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-300">Mobile notary — we come to you.</p>
+                  )}
+                  {effTravel.enabled && (
                     <>
                       <label className="block">
                         <span className="mb-1 block text-xs uppercase tracking-wider text-gray-400">
