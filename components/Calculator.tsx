@@ -44,6 +44,7 @@ function NumField({
   prefix,
   suffix,
   label,
+  disabled,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -52,6 +53,7 @@ function NumField({
   prefix?: string;
   suffix?: string;
   label: string;
+  disabled?: boolean;
 }) {
   const [text, setText] = useState(String(value));
   useEffect(() => {
@@ -63,6 +65,7 @@ function NumField({
       {prefix && <span className="pl-3 text-sm text-gray-400">{prefix}</span>}
       <input
         aria-label={label}
+        disabled={disabled}
         type="number"
         inputMode="decimal"
         min={min}
@@ -95,6 +98,8 @@ function Card({ title, icon, children }: { title: string; icon: React.ReactNode;
   );
 }
 
+type Dist = { state: 'idle' | 'loading' | 'ok' | 'error'; miles?: number; msg?: string };
+
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="flex cursor-pointer items-center gap-3 text-sm text-gray-200">
@@ -120,6 +125,7 @@ export default function Calculator() {
   const [items, setItems] = useState<LineItem[]>([newItem()]);
   const [travel, setTravel] = useState({ enabled: false, miles: 0, customFee: 0 });
   const [extraActs, setExtraActs] = useState(0);
+  const [dist, setDist] = useState<Dist>({ state: 'idle' });
   const [printing, setPrinting] = useState({ enabled: false, pages: 0 });
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -149,6 +155,40 @@ export default function Calculator() {
       /* ignore */
     }
   };
+
+  // Auto-fill travel distance from the client's address. The base address stays on the server.
+  useEffect(() => {
+    const a = client.address.trim();
+    if (a.length < 8 || !/\d/.test(a)) {
+      setDist({ state: 'idle' });
+      return;
+    }
+    const ctl = new AbortController();
+    const t = setTimeout(async () => {
+      setDist({ state: 'loading' });
+      try {
+        const res = await fetch('/api/distance', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ address: a }),
+          signal: ctl.signal,
+        });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.ok) {
+          setDist({ state: 'ok', miles: d.miles });
+          setTravel((tv) => ({ ...tv, miles: d.miles }));
+        } else {
+          setDist({ state: 'error', msg: d.error ?? "We couldn't calculate the distance. Enter the miles yourself." });
+        }
+      } catch {
+        if (!ctl.signal.aborted) setDist({ state: 'error', msg: "We couldn't calculate the distance. Enter the miles yourself." });
+      }
+    }, 900);
+    return () => {
+      clearTimeout(t);
+      ctl.abort();
+    };
+  }, [client.address]);
 
   // The public page prices mobile appointments only. The standard (no-travel) option exists for the owner (?owner=1).
   const effTravel = owner ? travel : { ...travel, enabled: true };
@@ -381,7 +421,7 @@ export default function Calculator() {
                 />
                 <input
                   className={inputCls}
-                  placeholder="Signing address (if mobile)"
+                  placeholder="Signing address (street, city, ZIP)"
                   value={client.address}
                   onChange={(e) => setClient({ ...client, address: e.target.value })}
                 />
@@ -528,9 +568,16 @@ export default function Calculator() {
                           value={travel.miles}
                           step={0.5}
                           suffix="mi"
+                          disabled={!owner && dist.state === 'ok'}
                           onChange={(n) => setTravel({ ...travel, miles: n })}
                         />
                       </label>
+                      <p className="text-xs text-gray-400" aria-live="polite">
+                        {dist.state === 'loading' && 'Calculating distance from our base…'}
+                        {dist.state === 'ok' && `Driving distance from our base: about ${dist.miles} mi one way (calculated from your address).`}
+                        {dist.state === 'error' && <span className="text-amber-300">{dist.msg}</span>}
+                        {dist.state === 'idle' && 'Enter the signing address above to calculate this automatically.'}
+                      </p>
                       {quote.needsCustomTravel && (
                         <label className="block">
                           <span className="mb-1 block text-xs uppercase tracking-wider text-amber-300">

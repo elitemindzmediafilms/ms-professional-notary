@@ -17,9 +17,16 @@ interface Env {
   FROM_EMAIL: string;
   /** "true" once the sending domain is verified in Resend; enables client confirmation emails. */
   CLIENT_CONFIRMATIONS?: string;
+  /** SECRET. The notary's base address; the origin for travel distance. Never sent to the browser. */
+  ORIGIN_ADDRESS?: string;
+  /** Optional SECRET. With it, distances come from Google Routes; without it, OpenStreetMap (fair-use) is used. */
+  GOOGLE_MAPS_API_KEY?: string;
   /** Overridable for tests. */
   RESEND_URL?: string;
   HUBSPOT_URL?: string;
+  ROUTES_URL?: string;
+  NOMINATIM_URL?: string;
+  OSRM_URL?: string;
 }
 
 const MAX_BODY = 20_000;
@@ -269,6 +276,82 @@ async function handleEstimate(env: Env, b: any) {
   return ok ? json({ ok: true }) : json({ ok: false }, 502);
 }
 
+// ---------- travel distance ----------
+// The origin address lives only in the ORIGIN_ADDRESS secret. The response contains just a whole number of
+// miles (rounded up), so the origin cannot be read back and is very hard to triangulate.
+const MILE = 1609.344;
+const OSM_UA = 'MSProfessionalNotary/1.0 (mwrightsr.ganotary@gmail.com)';
+let originGeo: Promise<[number, number]> | null = null;
+const distCache = new Map<string, number>();
+
+async function osmGeocode(env: Env, q: string): Promise<[number, number]> {
+  const url = `${env.NOMINATIM_URL ?? 'https://nominatim.openstreetmap.org'}/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers: { 'user-agent': OSM_UA } });
+  if (!res.ok) throw new Error(`geocode ${res.status}`);
+  const hit = ((await res.json()) as any[])[0];
+  if (!hit) throw new Error('address not found');
+  return [Number(hit.lon), Number(hit.lat)];
+}
+
+async function distanceMeters(env: Env, destination: string): Promise<number> {
+  const origin = env.ORIGIN_ADDRESS!;
+  if (env.GOOGLE_MAPS_API_KEY) {
+    const res = await fetch(env.ROUTES_URL ?? 'https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': env.GOOGLE_MAPS_API_KEY,
+        'x-goog-fieldmask': 'distanceMeters,status,condition',
+      },
+      body: JSON.stringify({
+        origins: [{ waypoint: { address: origin } }],
+        destinations: [{ waypoint: { address: destination } }],
+        travelMode: 'DRIVE',
+      }),
+    });
+    if (!res.ok) throw new Error(`routes ${res.status}`);
+    const row = ((await res.json()) as any[])[0];
+    if (!row || row.condition !== 'ROUTE_EXISTS' || typeof row.distanceMeters !== 'number') throw new Error('no route');
+    return row.distanceMeters;
+  }
+  originGeo ??= osmGeocode(env, origin);
+  let from: [number, number];
+  try {
+    from = await originGeo;
+  } catch (e) {
+    originGeo = null;
+    throw e;
+  }
+  const to = await osmGeocode(env, destination);
+  const res = await fetch(
+    `${env.OSRM_URL ?? 'https://router.project-osrm.org'}/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`,
+    { headers: { 'user-agent': OSM_UA } },
+  );
+  if (!res.ok) throw new Error(`osrm ${res.status}`);
+  const meters = ((await res.json()) as any)?.routes?.[0]?.distance;
+  if (typeof meters !== 'number') throw new Error('no route');
+  return meters;
+}
+
+async function handleDistance(env: Env, b: any) {
+  const address = str(b?.address, 200);
+  if (address.length < 8 || !/\d/.test(address)) return json({ ok: false, error: 'Enter a full street address.' }, 400);
+  if (!env.ORIGIN_ADDRESS) return json({ ok: false, error: 'Distance lookup is unavailable.' }, 503);
+  const key = address.toLowerCase();
+  let miles = distCache.get(key);
+  if (miles === undefined) {
+    try {
+      miles = Math.max(1, Math.ceil((await distanceMeters(env, address)) / MILE));
+    } catch (e) {
+      console.error('distance failed:', (e as Error).message);
+      return json({ ok: false, error: "We couldn't find that address. Check it, or enter the miles yourself." }, 422);
+    }
+    if (distCache.size > 500) distCache.clear();
+    distCache.set(key, miles);
+  }
+  return json({ ok: true, miles });
+}
+
 function handleClick(b: any) {
   const kind = b?.kind === 'email' ? 'email' : 'phone';
   const where = str(b?.page, 80);
@@ -300,6 +383,8 @@ export default {
         return handleLead(env, body);
       case '/api/estimate':
         return handleEstimate(env, body);
+      case '/api/distance':
+        return handleDistance(env, body);
       case '/api/click':
         return handleClick(body);
       default:

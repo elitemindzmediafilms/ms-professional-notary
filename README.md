@@ -47,6 +47,7 @@ npm run deploy      # builds, then `wrangler deploy`
 |---|---|---|
 | `POST /api/lead` | "Request an appointment" form (`/request`) | HubSpot contact created/updated by email + a note and a **follow-up task** (call within 1 hour) on the contact; email to the owner; optional confirmation email to the client |
 | `POST /api/estimate` | Downloading an estimate/invoice PDF with client details filled in | Same, with the line items and total; follow-up task due in 24 hours |
+| `POST /api/distance` | Calculator: client enters their signing address | Driving distance from the business base address, returned as whole miles (rounded up) and auto-filled into Travel. The base address and the route are never sent to the browser |
 | `POST /api/click` | Tapping a phone or email link | Anonymous log line (kind + page only), visible under the Worker's Logs |
 
 Spam protection: hidden honeypot field, same-origin check, payload size limit, server-side validation. For more, add a Cloudflare WAF rate-limiting rule on `/api/*`.
@@ -63,3 +64,16 @@ Spam protection: hidden honeypot field, same-origin check, payload size limit, s
 4. Change `NOTIFY_EMAIL` in `wrangler.toml` if notifications should go somewhere else, then push to `main`.
 
 Secrets added in the dashboard persist across deploys. If a service is unconfigured, the other still works, and failures are logged without personal data.
+
+### Travel distance auto-fill (`/api/distance`)
+
+The business base address is a **secret**, not code: it is never committed, never in the page bundle, and never in any response. The browser only ever receives a whole number of miles.
+
+Add in Cloudflare -> Worker -> Settings -> Variables and Secrets (type **Secret**):
+
+- `ORIGIN_ADDRESS` — the full street address, city, state and ZIP of your base.
+- `GOOGLE_MAPS_API_KEY` *(recommended)* — enable **Routes API** on a Google Cloud project and create an API key restricted to that API. Without it the Worker falls back to OpenStreetMap (Nominatim + OSRM), which is free but best-effort and has fair-use limits.
+
+If `ORIGIN_ADDRESS` is not set, or a lookup fails, the calculator tells the visitor to enter the miles by hand. On the public page the miles field is locked to the calculated value once a lookup succeeds, so a quote can't be lowered by editing it.
+
+Because the endpoint reveals a distance for any address you ask it about, add a Cloudflare WAF rate-limiting rule on `/api/*` (for example 20 requests per minute per IP) to discourage someone mapping your location by probing.
