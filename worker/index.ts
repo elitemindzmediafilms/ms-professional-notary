@@ -79,7 +79,7 @@ async function sendEmail(env: Env, msg: { to: string; subject: string; html: str
       ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
     }),
   });
-  if (!res.ok) throw new Error(`Resend ${res.status}`);
+  if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 300)}`);
 }
 
 // ---------- HubSpot ----------
@@ -89,7 +89,7 @@ async function hubspot(env: Env, path: string, body: unknown) {
     headers: { authorization: `Bearer ${env.HUBSPOT_TOKEN}`, 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HubSpot ${path} ${res.status}`);
+  if (!res.ok) throw new Error(`HubSpot ${path} ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json() as Promise<any>;
 }
 
@@ -183,8 +183,12 @@ async function notify(
   results.forEach((r, i) => {
     if (r.status === 'rejected') console.error(`job ${i} failed:`, (r.reason as Error)?.message);
   });
-  // Success if the owner was notified or the CRM saved it.
-  return results[0].status === 'fulfilled' || results[1].status === 'fulfilled';
+  const delivered = results[0].status === 'fulfilled' || results[1].status === 'fulfilled';
+  if (!delivered) {
+    // Nothing reached the owner. Keep the lead in the Worker's Logs so it can be recovered by hand.
+    console.error('LEAD NOT DELIVERED — recover from this log entry:', JSON.stringify({ subject: opts.subject, rows: opts.rows }));
+  }
+  return delivered;
 }
 
 // ---------- handlers ----------
@@ -367,6 +371,20 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+
+    // Configuration check: reports only whether each setting is present, never its value.
+    if (url.pathname === '/api/health' && request.method === 'GET') {
+      return json({
+        ok: true,
+        email: Boolean(env.RESEND_API_KEY),
+        crm: Boolean(env.HUBSPOT_TOKEN),
+        crmOwner: Boolean(env.HUBSPOT_OWNER_ID),
+        distance: Boolean(env.ORIGIN_ADDRESS),
+        distanceProvider: env.GOOGLE_MAPS_API_KEY ? 'google' : 'openstreetmap',
+        notifyTo: Boolean(env.NOTIFY_EMAIL),
+        clientConfirmations: env.CLIENT_CONFIRMATIONS === 'true',
+      });
+    }
 
     if (request.method !== 'POST') return json({ ok: false, error: 'Method not allowed' }, 405);
     const origin = request.headers.get('origin');

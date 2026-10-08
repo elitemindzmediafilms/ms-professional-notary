@@ -150,7 +150,16 @@ export default function RequestForm() {
           <label htmlFor="date" className={label}>
             Preferred date
           </label>
-          <input id="date" name="date" type="date" className={field} />
+          <input
+            id="date"
+            name="date"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            maxLength={40}
+            placeholder="e.g. 10/20/2026 or next Tuesday"
+            className={field}
+          />
         </div>
         <div>
           <label htmlFor="time" className={label}>

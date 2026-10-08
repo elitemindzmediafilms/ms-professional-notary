@@ -14,8 +14,8 @@ run_worker_first = ["/api/*"]
 
 [vars]
 NOTIFY_EMAIL = "mwrightsr.ganotary@gmail.com"
-FROM_EMAIL = "M&S Professional Notary <onboarding@resend.dev>"
-CLIENT_CONFIRMATIONS = "false"
+FROM_EMAIL = "M&S Professional Notary <requests@msprofessionalnotary.com>"
+CLIENT_CONFIRMATIONS = "true"
 
 # Secrets (add in Cloudflare -> Worker -> Settings -> Variables and Secrets, type "Secret"):
 #   RESEND_API_KEY, HUBSPOT_TOKEN
